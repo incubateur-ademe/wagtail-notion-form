@@ -7,7 +7,7 @@ by [quefairedemesobjets](https://github.com/incubateur-ademe/quefairedemesobjets
 ## Install
 
 ```bash
-uv add --editable ../../packages/wagtail-notion-form
+uv add wagtail-notion-form
 ```
 
 Add to `INSTALLED_APPS`:

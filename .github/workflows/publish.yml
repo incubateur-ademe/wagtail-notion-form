@@ -1,0 +1,57 @@
+# Publishes to PyPI when a GitHub release is published, with trusted publishing (no token).
+# See https://packaging.python.org/en/latest/guides/publishing-package-distribution-releases-using-github-actions-ci-cd-workflows/
+name: Publish to PyPI
+
+on:
+  release:
+    types: [published]
+
+permissions: {}
+
+jobs:
+  test:
+    uses: ./.github/workflows/test.yml
+    permissions:
+      contents: read
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: false # prevent cache poisoning
+      - name: Install gettext to compile translation files
+        run: sudo apt-get install -y gettext
+      - run: uv run django-admin compilemessages
+        working-directory: src/wagtail_notion_form
+      - run: uv build --verbose
+      - run: >-
+          uv run --isolated --no-project --with dist/*.whl python -c
+          "import importlib.resources as r;
+          f = r.files('wagtail_notion_form');
+          assert all((f / p).is_file() for p in ('locale/fr/LC_MESSAGES/django.mo',))"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: ./dist
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # required for trusted publishing
+    environment: pypi
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          print-hash: true
